@@ -1,16 +1,19 @@
 package com.cz.hrapigatewayzuul.config;
 
+import java.util.Arrays;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
-
-import org.springframework.http.HttpMethod;
-
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableResourceServer
@@ -23,20 +26,44 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
 
     private static final String[] OPERATOR = { "/hr-worker/**" };
 
-    private static final String[] ADMIN = { "/hr-payroll/**", "/hr-user/**", "/actuator/**", "/hr-worker/actuator/**", "/hr-oauth/actuator/**" };
+    private static final String[] ADMIN = {
+            "/hr-payroll/**",
+            "/hr-user/**",
+            "/actuator/**",
+            "/hr-worker/actuator/**",
+            "/hr-oauth/actuator/**"
+    };
 
     @Override
-    public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+    public void configure(ResourceServerSecurityConfigurer resources) {
         resources.tokenStore(tokenStore);
     }
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-
-        http.authorizeRequests()
+        http
+                .cors()
+                .and()
+                .csrf().disable()
+                .authorizeRequests()
                 .antMatchers(PUBLIC).permitAll()
                 .antMatchers(HttpMethod.GET, OPERATOR).hasAnyRole("OPERATOR", "ADMIN")
                 .antMatchers(ADMIN).hasRole("ADMIN")
                 .anyRequest().authenticated();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration corsConfig = new CorsConfiguration();
+
+        // Para dev ok. Em produção, troque "*" por seu domínio do front.
+        corsConfig.setAllowedOrigins(Arrays.asList("*"));
+        corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        corsConfig.setAllowCredentials(false); // com "*" tem que ser false
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", corsConfig);
+        return source;
     }
 }
